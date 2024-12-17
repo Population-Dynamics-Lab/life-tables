@@ -164,20 +164,28 @@ ggsave("./plots/quebec_lx_plot.png", quebec_lx_plot)
 ggsave("./plots/quebec_ex_plot.png", quebec_ex_plot)
 
 # Cohort Data Analysis 
+# pull in date from the lexis deaths which divide deaths by cohort
 clt <- "https://www.prdh.umontreal.ca/BDLC/data/ont/Deaths_lexis.txt" |>
   read_table(skip = 1, col_types = cols()) |>
+  # filter to a single cohort
   filter(Cohort == 1921) |>
   # group by ages
   mutate(Age = as.numeric(Age)) |>
   group_by(Age) |>
+  # clculate total deaths
   summarize(dx = sum(Male), .groups = "drop")
 
+
 clt |>
+  # calculate lx as a sum of the total deaths observed
   mutate(lx = rev(cumsum(rev(dx)))) |>
+  # qx is simply dx over lx
   mutate(qx = dx/lx) |>
   # Need to assume ax so we assume half year lived for all ages
   mutate(ax = .5) |>
+  # with ax assumed we can calculate Lx
   mutate(Lx = (lx-dx) + ax * dx) |>
+  # and the rest of the life table is pretty straightforward
   mutate(Mx = dx/Lx) |>
   mutate(px = 1-qx) |>
   mutate(Tx = rev(cumsum(rev(Lx)))) |>
