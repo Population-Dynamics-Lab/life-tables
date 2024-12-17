@@ -10,7 +10,8 @@ library(janitor) # to easily clean up column names
 # Ontario 2015 female life table ------------------------------------------
 
 # load Ontario 2015 female survivorship data, define 5-year age groups
-lt <- read_table("http://www.prdh.umontreal.ca/BDLC/data/ont/fltper_5x5.txt", skip = 2)
+lt <- read_table(
+  "http://www.prdh.umontreal.ca/BDLC/data/ont/fltper_5x5.txt", skip = 2)
 lt <- lt |> 
   filter(Year=="2015-2019") |> 
   mutate(x = c(0,1,seq(5, 110, by = 5)),
@@ -27,9 +28,10 @@ lx_plot <- lt |>
   mutate(lx = lx/100000) |> 
   ggplot(aes(x, lx)) +
   geom_line() + 
+  geom_point() +
   xlab("age") + 
   theme_bw(base_size = 14) + 
-  ggtitle("Survivorship for Ontario, 2015")
+  ggtitle("Female Survivorship", "Ontario 2015")
 lx_plot
 
 # look at estimated dx values for Ontario in 2015:
@@ -48,7 +50,7 @@ lt |>
   select(x,n, lx, dx, ax, Lx) |> 
   kable()
 
-# visualizing Lx graphically
+# visualizing Lx graphically (Figure 1 in article)
 Lx_plot <- lt |> 
   mutate(lx = lx/100000) |> 
   ggplot(aes(x, lx)) +
@@ -57,7 +59,7 @@ Lx_plot <- lt |>
   theme_bw(base_size = 14) + 
   geom_vline(xintercept = 15, lty = 2, color = "red")+
   geom_vline(xintercept = 30, lty = 2, color = "red")+
-  ggtitle("Survivorship for Ontario, 2015")
+  ggtitle("Female Survivorship", "Ontario 2015")
 Lx_plot
 
 # the full life table, with person-years lived above age x (Tx)
@@ -160,3 +162,24 @@ ggsave("./plots/ontario_lx_plot.png", lx_plot)
 ggsave("./plots/ontario_lived_plot.png", Lx_plot)
 ggsave("./plots/quebec_lx_plot.png", quebec_lx_plot)
 ggsave("./plots/quebec_ex_plot.png", quebec_ex_plot)
+
+# Cohort Data Analysis 
+clt <- "https://www.prdh.umontreal.ca/BDLC/data/ont/Deaths_lexis.txt" |>
+  read_table(skip = 1, col_types = cols()) |>
+  filter(Cohort == 1921) |>
+  # group by ages
+  mutate(Age = as.numeric(Age)) |>
+  group_by(Age) |>
+  summarize(dx = sum(Male), .groups = "drop")
+
+clt |>
+  mutate(lx = rev(cumsum(rev(dx)))) |>
+  mutate(qx = dx/lx) |>
+  # Need to assume ax so we assume half year lived for all ages
+  mutate(ax = .5) |>
+  mutate(Lx = (lx-dx) + ax * dx) |>
+  mutate(Mx = dx/Lx) |>
+  mutate(px = 1-qx) |>
+  mutate(Tx = rev(cumsum(rev(Lx)))) |>
+  mutate(ex = Tx / lx)
+
