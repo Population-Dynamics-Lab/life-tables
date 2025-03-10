@@ -169,20 +169,33 @@ clt <- "https://www.prdh.umontreal.ca/BDLC/data/ont/Deaths_lexis.txt" |>
   read_table(skip = 1, col_types = cols()) |>
   # filter to a single cohort
   filter(Cohort == 1921) |>
-  # group by ages
+  # redo ages so the format matches the previous life tables,
+  # 0, 1-4, 5-9, 10-14, ..., 95-99, 100-14 
   mutate(Age = as.numeric(Age)) |>
-  group_by(Age) |>
-  # clculate total deaths
-  summarize(dx = sum(Male), .groups = "drop")
-
+  mutate(age = cut(
+    Age, breaks = c(0, 1, seq(5, 100, by = 5), Inf),
+    include.lowest = TRUE, right = FALSE,
+    labels = c("0", "1-4", str_c(seq(5, 100, by = 5), "-", seq(9, 104, by = 5)))
+    )) |>
+  # group by ages
+  group_by(age) |>
+  # calculate total deaths
+  summarize(dx = sum(Male), .groups = "drop") |>
+  # calculate lx as a sum of the total deaths observed
+  # this ignores changes in population due to migration
+  mutate(lx = rev(cumsum(rev(dx))))
 
 clt |>
-  # calculate lx as a sum of the total deaths observed
-  mutate(lx = rev(cumsum(rev(dx)))) |>
   # qx is simply dx over lx
   mutate(qx = dx/lx) |>
-  # Need to assume ax so we assume half year lived for all ages
-  mutate(ax = .5) |>
+  # Need to assume ax so we assume similar to previous life table
+  mutate(
+    ax = case_when(
+      age=="0" ~ 0.07,
+      age=="1-4" ~ 1.5,
+      age=="100-104" ~ 2.4,
+      TRUE ~ 2.5
+    )) |>
   # with ax assumed we can calculate Lx
   mutate(Lx = (lx-dx) + ax * dx) |>
   # and the rest of the life table is pretty straightforward
@@ -190,4 +203,5 @@ clt |>
   mutate(px = 1-qx) |>
   mutate(Tx = rev(cumsum(rev(Lx)))) |>
   mutate(ex = Tx / lx)
+
 
