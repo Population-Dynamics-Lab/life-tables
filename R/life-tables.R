@@ -248,6 +248,6 @@ clt |>
   mutate(Mx = dx/Lx) |>
   mutate(px = 1-qx) |>
   mutate(Tx = rev(cumsum(rev(Lx)))) |>
-  mutate(ex = Tx / lx) %>% View()
+  mutate(ex = Tx / lx)
 
 
