@@ -74,25 +74,50 @@ lt |>
 # Period life table for females in Quebec in 2015 
 # Data from the Canadian Human Mortality Database 
 # Read in data from the website, and filter out what we need:
-Mx <- read_table(
-  "http://www.prdh.umontreal.ca/BDLC/data/que/Mx_5x5.txt", 
-  skip = 2, col_types = 'ccddd')
+Deaths <- read_table(
+  "https://www.prdh.umontreal.ca/BDLC/data/ont/Deaths_5x1.txt",
+  skip = 2, col_types = 'ccddd'
+)
+Pop <- read_table(
+  "https://www.prdh.umontreal.ca/BDLC/data/ont/Population5.txt",
+  skip = 2, col_types = 'ccddd'
+)
 
-d <- Mx |> 
+Deaths <- Deaths |>
   mutate(year = as.numeric(substr(Year, 1, 4))) |> 
   select(year, Age, Total) |> 
   clean_names() |> 
-  rename(Mx = total)
-head(d)
+  rename(D = total)
+Pop <- Pop |>
+  mutate(year = as.numeric(substr(Year, 1, 4))) |> 
+  select(year, Age, Total) |> 
+  clean_names() |> 
+  rename(N = total)
 
-# `age` is a character 
-# let's make an age `x` and interval length `n` column:
-d <- d |> 
-  mutate(x = as.numeric(str_remove(age, "-.*|\\+")),
-         n = lead(x, default = Inf) - x) |> 
-  filter(x<105) |> # remove older ages that have varying data availability
-  select(year, age, x, n, Mx)
-head(d)
+# join population and deaths
+d <- Deaths |>
+  left_join(Pop, by = c("year", "age"))
+
+# convert `age` from character to numeric and
+# aggregate ages 95+ because older ages have varying data quality
+d <- d |>
+  mutate(x = as.numeric(str_remove(age, "-.*|\\+"))) |>
+  mutate(x = ifelse(x >= 95, 95, x)) |>
+  group_by(year, x) |>
+  summarise(
+    D = sum(D),
+    N = sum(N),
+    .groups = "drop"
+  ) |>
+  mutate(
+    age = case_when(
+      x==0 ~ "0",
+      x==1 ~ "1-4",
+      x==95 ~ "95+",
+      TRUE ~ paste0(x, "-", x+4)
+    )
+  ) |>
+  select(year, age, x, N, D)
 
 # Use `tidyverse` to calculate the columns in the life table, 
 # based on the equations presented in previous sections 
@@ -100,22 +125,35 @@ head(d)
 lt_2015 <- d |> 
   filter(year==2015) |> 
   mutate(
+    n = lead(x, default = Inf) - x,
+    Mx = D/N,
     ax = case_when(
       x==0 ~ 0.07 + 1.7*Mx,
       x==1 ~ 1.5,
-      x==110 ~ 1/Mx,
+      x==95 ~ 1/Mx,
       TRUE ~ 2.5
     ),
-    qx = n * Mx / (1 + (n - ax)* Mx),
+    qx = case_when(
+      x==95 ~ 1,  # set to 1 for open interval
+      TRUE ~ n * Mx / (1 + (n - ax)* Mx)
+    ),
     px = 1 - qx,
     lx = lag(cumprod(px), default = 1),
     dx = lx - lead(lx, default = 0),
-    Lx = n * lead(lx, default = 0) + (ax* dx),
+    Lx = case_when(
+      x==95 ~ lx/Mx,
+      TRUE ~ n * lead(lx, default = 0) + (ax* dx)
+    ),
     Tx = rev(cumsum(rev(Lx))),
     ex = Tx / lx
-  ) 
+  )
 
-head(lt_2015)
+# Create Table 2
+library(kableExtra)
+lt_2015 |>
+  select(Age = age, x, n, Mx, ax, qx, px, lx, dx, Lx, Tx, ex) %>%
+  kable(format = "latex", booktabs = T,
+        digits = c(NA, 0, 0, 6, 3, 6, 6, 6, 6, 3, 3, 3))
 
 
 # Extend this to calculate life tables for every year 
@@ -123,20 +161,28 @@ head(lt_2015)
 lt_all_years <- d |> 
   group_by(year) |> 
   mutate(
+    n = lead(x, default = Inf) - x,
+    Mx = D/N,
     ax = case_when(
       x==0 ~ 0.07 + 1.7*Mx,
       x==1 ~ 1.5,
-      x==110 ~ 1/Mx,
+      x==95 ~ 1/Mx,
       TRUE ~ 2.5
     ),
-    qx = n * Mx / (1 + (n - ax)* Mx),
+    qx = case_when(
+      x==95 ~ 1,  # set to 1 for open interval
+      TRUE ~ n * Mx / (1 + (n - ax)* Mx)
+    ),
     px = 1 - qx,
     lx = lag(cumprod(px), default = 1),
     dx = lx - lead(lx, default = 0),
-    Lx = n * lead(lx, default = 0) + (ax* dx),
+    Lx = case_when(
+      x==95 ~ lx/Mx,
+      TRUE ~ n * lead(lx, default = 0) + (ax* dx)
+    ),
     Tx = rev(cumsum(rev(Lx))),
     ex = Tx / lx
-  ) 
+  )
 
 head(lt_all_years)
 
@@ -202,6 +248,6 @@ clt |>
   mutate(Mx = dx/Lx) |>
   mutate(px = 1-qx) |>
   mutate(Tx = rev(cumsum(rev(Lx)))) |>
-  mutate(ex = Tx / lx)
+  mutate(ex = Tx / lx) %>% View()
 
 
