@@ -151,7 +151,7 @@ lt_2015 <- d |>
 # Create Table 2
 library(kableExtra)
 lt_2015 |>
-  select(Age = age, x, n, Mx, ax, qx, px, lx, dx, Lx, Tx, ex) %>%
+  select(Age = age, x, n, Mx, ax, qx, px, lx, dx, Lx, Tx, ex) |>
   kable(format = "latex", booktabs = T,
         digits = c(NA, 0, 0, 6, 3, 6, 6, 6, 6, 3, 3, 3))
 
