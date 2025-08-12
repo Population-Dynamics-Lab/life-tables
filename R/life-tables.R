@@ -252,7 +252,6 @@ raw_lexis <- tryCatch(
   }
 )
 clt <- raw_lexis |>
-  read_table(skip = 1, col_types = cols()) |>
   # filter to a single cohort
   filter(Cohort == 1921) |>
   # redo ages so the format matches the previous life tables,
@@ -298,3 +297,35 @@ clt |>
   mutate(px = 1 - qx) |>
   mutate(Tx = rev(cumsum(rev(Lx)))) |>
   mutate(ex = Tx / lx)
+
+
+# ---- save printed tables as HTML
+dir.create("tables", showWarnings = FALSE, recursive = TRUE)
+
+save_html_wide <- function(df, file, min_em = 2) {
+  dir.create("tables", showWarnings = FALSE, recursive = TRUE)
+  kable(df, format = "html") |>
+    kableExtra::kable_styling(full_width = TRUE) |>
+    kableExtra::column_spec(
+      1:ncol(df),
+      width = paste0(min_em, "em"),
+      extra_css = "white-space: nowrap;"
+    ) |>
+    kableExtra::save_kable(file, self_contained = TRUE)
+}
+
+save_html_wide(lt |> select(x, n, lx), "tables/ontario_x_n_lx.html")
+save_html_wide(lt |> select(x, n, lx, dx), "tables/ontario_x_n_lx_dx.html")
+save_html_wide(
+  lt |> mutate(px = 1 - qx) |> select(x, n, lx, dx, qx, px),
+  "tables/ontario_qx_px.html"
+)
+save_html_wide(lt |> select(x, n, lx, dx, ax, Lx), "tables/ontario_ax_Lx.html")
+save_html_wide(
+  lt |> select(x, n, lx, dx, ax, Lx, Tx, ex),
+  "tables/ontario_full_life_table.html"
+)
+save_html_wide(
+  lt_2015 |> select(Age = age, x, n, Mx, ax, qx, px, lx, dx, Lx, Tx, ex),
+  "tables/quebec_2015_life_table.html"
+)
