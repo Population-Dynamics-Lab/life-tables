@@ -1,8 +1,8 @@
 ---
 title: "Life tables in R using the `tidyverse`"
 author: "Monica Alexander"
-output: 
-  pdf_document:
+format: 
+  typst:
     number_sections: true
     toc: true
 ---
@@ -346,6 +346,3 @@ lt_all_years |>
   geom_line() + 
   ggtitle("Life expectancy at birth, Quebec")
 ```
-
-
-
