@@ -3,7 +3,6 @@ title: "Life tables in R using the `tidyverse`"
 author: "Monica Alexander"
 format: 
   typst:
-    number_sections: true
     toc: true
 ---
 
@@ -372,10 +371,12 @@ lt_2015 <- d |>
   )
 ```
 
-## Create Table 2 
+## Table 2: Period life table for females in Quebec in 2015
 ```{r}
 lt_2015 |>
   select(Age = age, x, n, Mx, ax, qx, px, lx, dx, Lx, Tx, ex) |>
+  # Padding Age with non-breaking spaces so it doesn't overflow into x
+  mutate(Age = paste0(Age, strrep("\u00a0", 2))) |>
   kable(
     booktabs = TRUE,
     digits = c(NA, 0, 0, 6, 3, 6, 6, 6, 6, 3, 3, 3)
