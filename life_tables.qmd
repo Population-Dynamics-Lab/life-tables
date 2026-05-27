@@ -35,7 +35,7 @@ A usual place to start is survivorship, $l_x$, which is defined as the number of
 Here's the estimated $l_x$ values for females in Ontario in 2015. The data are from the [Canadian Human Mortality Database](http://www.bdlc.umontreal.ca/CHMD/). Here, the radix is 100,000. By age 110, out of the original population of 100,000, it is estimated that 26 will survive. 
 
 ```{r}
-# Download, cache and read the Ontario female survivorship data 
+# Download, cache and read the Ontario female survivorship data
 dir.create("data-cache", showWarnings = FALSE)
 u_lt <- "http://www.prdh.umontreal.ca/BDLC/data/ont/fltper_5x5.txt"
 f_lt <- file.path("data-cache", basename(u_lt))
@@ -53,27 +53,28 @@ lt <- tryCatch(
 
 ```{r}
 # Filter the full table to 2015 female survivorship data, define 5-year age groups
-lt <- lt |> 
-  filter(Year=="2015-2019") |> 
-  mutate(x = c(0,1,seq(5, 110, by = 5)),
-         n = lead(x, default = Inf)-x)
+lt <- lt |>
+  filter(Year == "2015-2019") |>
+  mutate(
+    x = c(0, 1, seq(5, 110, by = 5)),
+    n = lead(x, default = Inf) - x
+  )
 
 # let's look at the data
-lt |> 
-  select(x,n, lx) |>
+lt |>
+  select(x, n, lx) |>
   kable()
-
 ```
 
 Let's also plot the $l_x$ and divide through by 100,000 so the $l_x$ can be interpreted as the proportion of the population surviving at age $x$.
 
 ```{r}
-lt |> 
-  mutate(lx = lx/100000) |> 
+lt |>
+  mutate(lx = lx / 100000) |>
   ggplot(aes(x, lx)) +
-  geom_line() + 
-  xlab("age") + 
-  theme_bw(base_size = 14) + 
+  geom_line() +
+  xlab("age") +
+  theme_bw(base_size = 14) +
   ggtitle("Survivorship for Ontario, 2015")
 ```
 
@@ -89,8 +90,8 @@ $$
 Let's look at the estimated $_nd_x$ values for Ontario in 2015:
 
 ```{r}
-lt |> 
-  select(x,n, lx, dx) |> 
+lt |>
+  select(x, n, lx, dx) |>
   kable()
 ```
 
@@ -120,9 +121,9 @@ i.e. the probability of survival is the ratio of the the survivors at the end an
 Looking again at the data for Ontario in 2015, notice the probability of death in the last age group is 1, because again, everyone must die eventually. 
 
 ```{r}
-lt |> 
-  mutate(px = 1- qx) |> 
-  select(x, n, lx, dx, qx, px) |> 
+lt |>
+  mutate(px = 1 - qx) |>
+  select(x, n, lx, dx, qx, px) |>
   kable()
 ```
 
@@ -148,8 +149,8 @@ Note for the last interval there are no survivors, so $_{\infty}L_x  = {_{\infty
 Adding $_na_x$ and $_nL_x$ to the Ontario life table:
 
 ```{r}
-lt |> 
-  select(x,n, lx, dx, ax, Lx) |> 
+lt |>
+  select(x, n, lx, dx, ax, Lx) |>
   kable()
 ```
 
@@ -170,7 +171,6 @@ lt |>
   geom_vline(xintercept = 15, lty = 2, color = "red") +
   geom_vline(xintercept = 30, lty = 2, color = "red") +
   ggtitle("Survivorship for Ontario, 2015")
-
 ```
 
 With this in mind, we can represent $_nL_x$ in continuous form as
@@ -209,8 +209,8 @@ You are probably most familiar with life expectancy at birth, $e_0$. Note that i
 The filled-in life table with all columns discussed:
 
 ```{r}
-lt |> 
-  select(x,n, lx, dx, ax, Lx, Tx, ex) |> 
+lt |>
+  select(x, n, lx, dx, ax, Lx, Tx, ex) |>
   kable()
 ```
 
@@ -286,7 +286,7 @@ Deaths <- tryCatch(
 ```
 
 ```{r}
-# Download, cache, and read the population data 
+# Download, cache, and read the population data
 u_P <- "https://www.prdh.umontreal.ca/BDLC/data/ont/Population5.txt"
 f_P <- file.path("data-cache", basename(u_P))
 suppressWarnings(try(
@@ -317,7 +317,6 @@ Pop <- Pop |>
 # join population and deaths
 d <- Deaths |>
   left_join(Pop, by = c("year", "age"))
-
 ```
 
 The `age` column is a character, so let's make an age `x` and interval length `n` column. We also aggregate ages 95+ because older ages have varying data quality
