@@ -35,19 +35,19 @@ A usual place to start is survivorship, $l_x$, which is defined as the number of
 Here's the estimated $l_x$ values for females in Ontario in 2015. The data are from the [Canadian Human Mortality Database](http://www.bdlc.umontreal.ca/CHMD/). Here, the radix is 100,000. By age 110, out of the original population of 100,000, it is estimated that 26 will survive. 
 
 ```{r}
-# Download, cache and read the Ontario female survivorship data
+# Download, cache and read the Ontario female survivorship data from period life tables for females
 dir.create("data-cache", showWarnings = FALSE)
-u_lt <- "http://www.prdh.umontreal.ca/BDLC/data/ont/fltper_5x5.txt"
-f_lt <- file.path("data-cache", basename(u_lt))
+fem_lt_url <- "http://www.prdh.umontreal.ca/BDLC/data/ont/fltper_5x5.txt"
+fem_lt_file_path <- file.path("data-cache", basename(fem_lt_url))
 
 suppressWarnings(try(
-  utils::download.file(u_lt, f_lt, mode = "wb", quiet = TRUE),
+  utils::download.file(fem_lt_url, fem_lt_file_path, mode = "wb", quiet = TRUE),
   silent = TRUE
 ))
 
 lt <- tryCatch(
-  readr::read_table(u_lt, skip = 2),
-  error = function(e) readr::read_table(f_lt, skip = 2)
+  readr::read_table(fem_lt_url, skip = 2),
+  error = function(e) readr::read_table(fem_lt_file_path, skip = 2)
 )
 ```
 
@@ -273,40 +273,40 @@ Let's make a period life table for females in Quebec in 2015 using data from the
 
 ```{r}
 # Download, cache, and read the deaths data
-u_D <- "https://www.prdh.umontreal.ca/BDLC/data/ont/Deaths_5x1.txt"
-f_D <- file.path("data-cache", basename(u_D))
+deaths_url <- "https://www.prdh.umontreal.ca/BDLC/data/ont/Deaths_5x1.txt"
+deaths_file_path <- file.path("data-cache", basename(deaths_url))
 suppressWarnings(try(
-  utils::download.file(u_D, f_D, mode = "wb", quiet = TRUE),
+  utils::download.file(deaths_url, deaths_file_path, mode = "wb", quiet = TRUE),
   silent = TRUE
 ))
-Deaths <- tryCatch(
-  readr::read_table(u_D, skip = 2, col_types = "ccddd"),
-  error = function(e) readr::read_table(f_D, skip = 2, col_types = "ccddd")
+deaths <- tryCatch(
+  readr::read_table(deaths_url, skip = 2, col_types = "ccddd"),
+  error = function(e) readr::read_table(deaths_file_path, skip = 2, col_types = "ccddd")
 )
 ```
 
 ```{r}
 # Download, cache, and read the population data
-u_P <- "https://www.prdh.umontreal.ca/BDLC/data/ont/Population5.txt"
-f_P <- file.path("data-cache", basename(u_P))
+pop_url <- "https://www.prdh.umontreal.ca/BDLC/data/ont/Population5.txt"
+pop_file_path <- file.path("data-cache", basename(pop_url))
 suppressWarnings(try(
-  utils::download.file(u_P, f_P, mode = "wb", quiet = TRUE),
+  utils::download.file(pop_url, pop_file_path, mode = "wb", quiet = TRUE),
   silent = TRUE
 ))
-Pop <- tryCatch(
-  readr::read_table(u_P, skip = 2, col_types = "ccddd"),
-  error = function(e) readr::read_table(f_P, skip = 2, col_types = "ccddd")
+pop <- tryCatch(
+  readr::read_table(pop_url, skip = 2, col_types = "ccddd"),
+  error = function(e) readr::read_table(pop_file_path, skip = 2, col_types = "ccddd")
 )
 ```
 
 ```{r}
 # Clean names and select columns of interest in each dataframe
-Deaths <- Deaths |>
+deaths <- deaths |>
   mutate(year = as.numeric(substr(Year, 1, 4))) |>
   select(year, Age, Total) |>
   clean_names() |>
   rename(D = total)
-Pop <- Pop |>
+pop <- pop |>
   mutate(year = as.numeric(substr(Year, 1, 4))) |>
   select(year, Age, Total) |>
   clean_names() |>
@@ -315,8 +315,8 @@ Pop <- Pop |>
 
 ```{r}
 # join population and deaths
-d <- Deaths |>
-  left_join(Pop, by = c("year", "age"))
+d <- deaths |>
+  left_join(pop, by = c("year", "age"))
 ```
 
 The `age` column is a character, so let's make an age `x` and interval length `n` column. We also aggregate ages 95+ because older ages have varying data quality
@@ -343,7 +343,6 @@ d <- d |>
 ```
 
 Now we can use `tidyverse` to calculate the columns in the life table, based on the equations presented in previous sections. I set the radix $l_0$ to be one and filter to just include the year 2015. This code makes use of the `case_when` function, which allows to define different values of $_na_x$ based on age group. Formulas for other columns are based on equations stated above. The formula for $T_x$ is implemented by first reversing the $_nL_x$ column, taking the cumulative sum, and then reversing the result. 
-
 
 ```{r}
 lt_2015 <- d |>
@@ -378,7 +377,7 @@ lt_2015 <- d |>
 lt_2015 |>
   select(Age = age, x, n, Mx, ax, qx, px, lx, dx, Lx, Tx, ex) |>
   kable(
-    booktabs = T,
+    booktabs = TRUE,
     digits = c(NA, 0, 0, 6, 3, 6, 6, 6, 6, 3, 3, 3)
   )
 ```
