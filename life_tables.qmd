@@ -27,7 +27,7 @@ library(janitor) # to easily clean up column names
 # Columns of the lifetable
 ## Survivorship $l_x$
 
-Every row of a life table refers to a different age or age group: if the later, the table is referred to as an **abridged** life table. We will define $x$ to be age and $n$ to be the length of the interval. 
+Every row of a life table refers to a different age or age group: if the latter, the table is referred to as an **abridged** life table. We will define $x$ to be age and $n$ to be the length of the interval. 
 
 A usual place to start is survivorship, $l_x$, which is defined as the number of people still left alive at age $x$. The value of $l_0$ is the starting size of the population, and is called the **radix**. In practice, the radix is usually equal to 1, 100, or 100,000. If $l_0=1$ then then $l_x$ is a probability of survival to age $x$. Note that for now we are implicitly assuming this $l_0$ relates to a **cohort** of people moving through time, so the life table documents **cohort** mortality. However, later on we will look at period mortality. 
 
@@ -223,7 +223,7 @@ In addition to constructing cohort life tables, we can construct **period** life
 
 The key to constructing period life tables is converting the observed period mortality rates $_nM_x$ to probabilities of death, $_nq_x$. The mortality rate is the number deaths divided by person years lived, so in life table notation this is:
 $$
-_nM_x = \frac{_ndx}{_nLx}
+_nM_x = \frac{_nd_x}{_nL_x}
 $$
 
 We can use the following **$_nM_x$ to $_nq_x$ conversion formula** to get the $_nq_x$ column, after which all other columns can be derived based on the relationships discussed above (and choosing a radix). The formula is:
