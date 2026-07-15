@@ -3,14 +3,12 @@ title: "Life tables in R using the `tidyverse`"
 author: "Monica Alexander"
 format: 
   typst:
-    number_sections: true
     toc: true
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
-
 
 \newpage
 
@@ -19,8 +17,6 @@ Life tables are a fundamental tool in demography. A life table describes the mor
 This module explains the main columns of a lifetable and demonstrates how to construct a lifetable in R using the `tidyverse` syntax. 
 
 Let's load in the packages we need:
-
-
 
 ```{r, echo = TRUE}
 library(tidyverse) # data manipulation and ggplot functions
@@ -31,51 +27,70 @@ library(janitor) # to easily clean up column names
 # Columns of the lifetable
 ## Survivorship $l_x$
 
-Every row of a life table refers to a different age or age group: if the later, the table is referred to as an **abridged** life table. We will define $x$ to be age and $n$ to be the length of the interval. 
+Every row of a life table refers to a different age or age group: if the latter, the table is referred to as an **abridged** life table. We will define $x$ to be age and $n$ to be the length of the interval. 
 
 A usual place to start is survivorship, $l_x$, which is defined as the number of people still left alive at age $x$. The value of $l_0$ is the starting size of the population, and is called the **radix**. In practice, the radix is usually equal to 1, 100, or 100,000. If $l_0=1$ then then $l_x$ is a probability of survival to age $x$. Note that for now we are implicitly assuming this $l_0$ relates to a **cohort** of people moving through time, so the life table documents **cohort** mortality. However, later on we will look at period mortality. 
 
-Here's the estimated $l_x$ values for females in Ontario in 2015. The data are from the [Canadian Human Mortality Database](http://www.bdlc.umontreal.ca/CHMD/). Here, the radix is 100,000. By age 110, out of the original population of 100,000, it is estimated that 28 will survive. 
+Here's the estimated $l_x$ values for females in Ontario in 2015. The data are from the [Canadian Human Mortality Database](http://www.bdlc.umontreal.ca/CHMD/). Here, the radix is 100,000. By age 110, out of the original population of 100,000, it is estimated that 26 will survive. 
 
 ```{r}
-lt <- read_table("http://www.prdh.umontreal.ca/BDLC/data/ont/fltper_5x5.txt", skip = 2)
-lt <- lt |> 
-  filter(Year=="2015-2019") |> 
-  mutate(x = c(0,1,seq(5, 110, by = 5)),
-         n = lead(x, default = Inf)-x)
+# Download, cache and read the Ontario female survivorship data from period life tables for females
+dir.create("data-cache", showWarnings = FALSE)
+fem_lt_url <- "http://www.prdh.umontreal.ca/BDLC/data/ont/fltper_5x5.txt"
+fem_lt_file_path <- file.path("data-cache", basename(fem_lt_url))
 
-lt |> 
-  select(x,n, lx) |>
-  kable()
+suppressWarnings(try(
+  utils::download.file(fem_lt_url, fem_lt_file_path, mode = "wb", quiet = TRUE),
+  silent = TRUE
+))
 
+lt <- tryCatch(
+  readr::read_table(fem_lt_url, skip = 2),
+  error = function(e) readr::read_table(fem_lt_file_path, skip = 2)
+)
 ```
+
+```{r}
+# Filter the full table to 2015 female survivorship data, define 5-year age groups
+lt <- lt |>
+  filter(Year == "2015-2019") |>
+  mutate(
+    x = c(0, 1, seq(5, 110, by = 5)),
+    n = lead(x, default = Inf) - x
+  )
+
+# let's look at the data
+lt |>
+  select(x, n, lx) |>
+  kable()
+```
+
 Let's also plot the $l_x$ and divide through by 100,000 so the $l_x$ can be interpreted as the proportion of the population surviving at age $x$.
 
 ```{r}
-lt |> 
-  mutate(lx = lx/100000) |> 
+lt |>
+  mutate(lx = lx / 100000) |>
   ggplot(aes(x, lx)) +
-  geom_line() + 
-  xlab("age") + 
-  theme_bw(base_size = 14) + 
+  geom_line() +
+  xlab("age") +
+  theme_bw(base_size = 14) +
   ggtitle("Survivorship for Ontario, 2015")
 ```
-
-
 
 ## Deaths $_nd_x$
 
 The next column, $_nd_x$,  is the number of deaths between ages $x$ and $x+n$. Note that we using the 'duration-age' notation, because it refers to deaths over an interval. In contrast, $l_x$ refers to survivors at a certain age $x$.
 
 By definition, the number of deaths over an interval must be the number of survivors at the start of the interval, minus the number of survivors at the end, i.e.
+
 $$
 _nd_x = l_x - l_{x+n}.
 $$
 Let's look at the estimated $_nd_x$ values for Ontario in 2015:
 
 ```{r}
-lt |> 
-  select(x,n, lx, dx) |> 
+lt |>
+  select(x, n, lx, dx) |>
   kable()
 ```
 
@@ -86,6 +101,7 @@ Notice the structure of the life table in terms of where the the values of $l_x$
 ## Probability of dying, $_nq_x$, and of surviving, $_np_x$
 
 The next column, $_nq_x$ is the probability of dying between ages $x$ and $x+n$. Note that this is a conditional probability, so it's the probability of dying in that interval given you survived to age $x$. $_nq_x$ can be calculated as 
+
 $$
 _nq_x = \frac{_nd_x}{l_x} 
 $$
@@ -104,9 +120,9 @@ i.e. the probability of survival is the ratio of the the survivors at the end an
 Looking again at the data for Ontario in 2015, notice the probability of death in the last age group is 1, because again, everyone must die eventually. 
 
 ```{r}
-lt |> 
-  mutate(px = 1- qx) |> 
-  select(x, n, lx, dx, qx, px) |> 
+lt |>
+  mutate(px = 1 - qx) |>
+  select(x, n, lx, dx, qx, px) |>
   kable()
 ```
 
@@ -132,12 +148,12 @@ Note for the last interval there are no survivors, so $_{\infty}L_x  = {_{\infty
 Adding $_na_x$ and $_nL_x$ to the Ontario life table:
 
 ```{r}
-lt |> 
-  select(x,n, lx, dx, ax, Lx) |> 
+lt |>
+  select(x, n, lx, dx, ax, Lx) |>
   kable()
 ```
 
-### $_nL_x$ graphically and the relationship with $l_x$
+## Figure 2 in article: $_nL_x$ graphically and the relationship with $l_x$
 
 $_nL_x$ is essentially the number of survivors times the average length of time they survived in a particular interval. For a given radix $l_0$ and interval length $n$, the maximum $_nL_x$ could be is $l_0 \cdot n$, if everyone survived. 
 
@@ -145,14 +161,14 @@ How does $_nL_x$ relate to $l_x$? It is the area under the $l_x$ curve for the i
 
 
 ```{r}
-lt |> 
-  mutate(lx = lx/100000) |> 
+lt |>
+  mutate(lx = lx / 100000) |>
   ggplot(aes(x, lx)) +
-  geom_line() + 
-  xlab("age") + 
-  theme_bw(base_size = 14) + 
-  geom_vline(xintercept = 15, lty = 2, color = "red")+
-  geom_vline(xintercept = 30, lty = 2, color = "red")+
+  geom_line() +
+  xlab("age") +
+  theme_bw(base_size = 14) +
+  geom_vline(xintercept = 15, lty = 2, color = "red") +
+  geom_vline(xintercept = 30, lty = 2, color = "red") +
   ggtitle("Survivorship for Ontario, 2015")
 ```
 
@@ -163,7 +179,6 @@ _nL_x = \frac{1}{l_0}\int_x^{x+n} l_x dx
 $$
 In practice we usually have to calculate $_nL_x$ in the discrete form, but it's often useful to think about it in continuous form, i.e. the area under the survivorship curve. 
 
-
 ## Person-years lived above age $x$, $T_x$
 
 Whereas $_nL_x$ is the person-years lived in a specific interval, $T_x$ is the person-years lived above a specific age $x$ (so notice it does not have the duration/age notation). It is defined as the sum of the relevant $_nL_x$:
@@ -173,6 +188,7 @@ T_x = \sum_x ^ \infty {_nL_x}
 \end{equation*}
 
 In a similar fashion to $_nL_x$, $T_x$ can be thought of as the area under the $l_x$ curve above age $x$. In addition, We can write $T_x$ in continuous form as
+
 $$
 T_x = \frac{1}{l_0}\int_x^{\infty} l_x dx
 $$
@@ -192,8 +208,8 @@ You are probably most familiar with life expectancy at birth, $e_0$. Note that i
 The filled-in life table with all columns discussed:
 
 ```{r}
-lt |> 
-  select(x,n, lx, dx, ax, Lx, Tx, ex) |> 
+lt |>
+  select(x, n, lx, dx, ax, Lx, Tx, ex) |>
   kable()
 ```
 
@@ -201,16 +217,16 @@ lt |>
 
 A life table as defined above refers to tracking the mortality of a **cohort** of people as they age. However, it is often not practical or useful just to consider the mortality of a cohort, because in order to to build a complete table, we have to wait to observe everyone in the cohort die. So for the 1990 birth cohort, for example, we would probably have to wait around until at least 2090 before a reasonable cohort life table could be built. This is not very useful to study current mortality conditions. 
 
-In addition to constructing cohort life tables, we can construct **period** life tables. They refer to the period in the sense that they are constructed using mortality conditions in a particular period. This means the lifetable refers to a **synthetic cohort**, a hypothetical group of people that experience the mortality conditions of the period of interest throughout their entire life. Why is this hypothetical and potentially unrealistic? Because mortality conditions change over time (and in general, are getting better). So for example, if I live until I'm 70, the mortality conditions I am subject to in the future are likely to be different to the mortality conditions that a current 70-year-old is being subjected to. However, period life tables are still useful to compare mortality outcomes for different populations in a more up-to-date way. 
+In addition to constructing cohort life tables, we can construct **period** life tables. They refer to the period in the sense that they are constructed using mortality conditions in a particular period. This means the life table refers to a **synthetic cohort**, a hypothetical group of people that experience the mortality conditions of the period of interest throughout their entire life. Why is this hypothetical and potentially unrealistic? Because mortality conditions change over time (and in general, are getting better). So for example, if I live until I'm 70, the mortality conditions I am subject to in the future are likely to be different to the mortality conditions that a current 70-year-old is being subjected to. However, period life tables are still useful to compare mortality outcomes for different populations in a more up-to-date way. 
 
 ## Construction from period mortality rates 
 
 The key to constructing period life tables is converting the observed period mortality rates $_nM_x$ to probabilities of death, $_nq_x$. The mortality rate is the number deaths divided by person years lived, so in life table notation this is:
 $$
-_nM_x = \frac{_ndx}{_nLx}
+_nM_x = \frac{_nd_x}{_nL_x}
 $$
-We can use the following **$_nM_x$ to $_nq_x$ conversion formula** to get the $_nq_x$ column, after which all other columns can be derived based on the relationships discussed above (and choosing a radix). The formula is:
 
+We can use the following **$_nM_x$ to $_nq_x$ conversion formula** to get the $_nq_x$ column, after which all other columns can be derived based on the relationships discussed above (and choosing a radix). The formula is:
 
 $$
 _nq_x = \frac{n \cdot {_nM_x}}{1 + (n - {_na_x})\cdot {_nM_x}}
@@ -225,6 +241,7 @@ $$_na_x = n/2$$
 that is, on average those who die, die half-way through the interval. So for an abridged life table with five-year intervals, $_na_x = 2.5$. This assumption is fine for most age groups, except for the very young and very old ages. 
 
 At younger ages, typically in abridged life tables the first five years is split out into the first year, and years 1-5, so we need values for $_1a_0$ and $_4a_1$. For mortality at younger ages, we expected comparatively more deaths to occur at the start of the interval, so $_na_x < n/2$. The following two approximations are common, and used e.g. by Wachter in Essential Demographic Methods (2014):
+
 $$
 _1a_0 = 0.07 + 1.7 _1M_0
 $$
@@ -254,95 +271,115 @@ As mentioned at the start of this section, period life tables are constructed fr
 Let's make a period life table for females in Quebec in 2015 using data from the Canadian Human Mortality Database. Read in the data directly from the website, and filter out what we need:
 
 ```{r}
-Mx <- read_table("http://www.prdh.umontreal.ca/BDLC/data/que/Mx_5x5.txt", skip = 2, col_types = 'ccddd')
-
-d <- Mx |> 
-  mutate(year = as.numeric(substr(Year, 1, 4))) |> 
-  select(year, Age, Total) |> 
-  clean_names() |> 
-  rename(Mx = total)
-
-head(d)
+# Download, cache, and read the deaths data
+deaths_url <- "https://www.prdh.umontreal.ca/BDLC/data/ont/Deaths_5x1.txt"
+deaths_file_path <- file.path("data-cache", basename(deaths_url))
+suppressWarnings(try(
+  utils::download.file(deaths_url, deaths_file_path, mode = "wb", quiet = TRUE),
+  silent = TRUE
+))
+deaths <- tryCatch(
+  readr::read_table(deaths_url, skip = 2, col_types = "ccddd"),
+  error = function(e) readr::read_table(deaths_file_path, skip = 2, col_types = "ccddd")
+)
 ```
 
-The `age` column is a character, so let's make an age `x` and interval length `n` column:
+```{r}
+# Download, cache, and read the population data
+pop_url <- "https://www.prdh.umontreal.ca/BDLC/data/ont/Population5.txt"
+pop_file_path <- file.path("data-cache", basename(pop_url))
+suppressWarnings(try(
+  utils::download.file(pop_url, pop_file_path, mode = "wb", quiet = TRUE),
+  silent = TRUE
+))
+pop <- tryCatch(
+  readr::read_table(pop_url, skip = 2, col_types = "ccddd"),
+  error = function(e) readr::read_table(pop_file_path, skip = 2, col_types = "ccddd")
+)
+```
 
 ```{r}
-d <- d |> 
-  mutate(x = as.numeric(str_remove(age, "-.*|\\+")),
-         n = lead(x, default = Inf) - x) |> 
-  filter(x<105) |> # remove older ages that have varying data availability
-  select(year, age, x, n, Mx)
-head(d)
+# Clean names and select columns of interest in each dataframe
+deaths <- deaths |>
+  mutate(year = as.numeric(substr(Year, 1, 4))) |>
+  select(year, Age, Total) |>
+  clean_names() |>
+  rename(D = total)
+pop <- pop |>
+  mutate(year = as.numeric(substr(Year, 1, 4))) |>
+  select(year, Age, Total) |>
+  clean_names() |>
+  rename(N = total)
+```
+
+```{r}
+# join population and deaths
+d <- deaths |>
+  left_join(pop, by = c("year", "age"))
+```
+
+The `age` column is a character, so let's make an age `x` and interval length `n` column. We also aggregate ages 95+ because older ages have varying data quality
+
+```{r}
+d <- d |>
+  mutate(x = as.numeric(str_remove(age, "-.*|\\+"))) |>
+  mutate(x = ifelse(x >= 95, 95, x)) |>
+  group_by(year, x) |>
+  summarise(
+    D = sum(D),
+    N = sum(N),
+    .groups = "drop"
+  ) |>
+  mutate(
+    age = case_when(
+      x == 0 ~ "0",
+      x == 1 ~ "1-4",
+      x == 95 ~ "95+",
+      TRUE ~ paste0(x, "-", x + 4)
+    )
+  ) |>
+  select(year, age, x, N, D)
 ```
 
 Now we can use `tidyverse` to calculate the columns in the life table, based on the equations presented in previous sections. I set the radix $l_0$ to be one and filter to just include the year 2015. This code makes use of the `case_when` function, which allows to define different values of $_na_x$ based on age group. Formulas for other columns are based on equations stated above. The formula for $T_x$ is implemented by first reversing the $_nL_x$ column, taking the cumulative sum, and then reversing the result. 
 
-
 ```{r}
-lt_2015 <- d |> 
-  filter(year==2015) |> 
+lt_2015 <- d |>
+  filter(year == 2015) |>
   mutate(
-       ax = case_when(
-       x==0 ~ 0.07 + 1.7*Mx,
-       x==1 ~ 1.5,
-       x==110 ~ 1/Mx,
-       TRUE ~ 2.5
-     ),
-      qx = n * Mx / (1 + (n - ax)* Mx),
-      px = 1 - qx,
-      lx = lag(cumprod(px), default = 1),
-      dx = lx - lead(lx, default = 0),
-      Lx = n * lead(lx, default = 0) + (ax* dx),
-      Tx = rev(cumsum(rev(Lx))),
-      ex = Tx / lx
-      ) 
-
-head(lt_2015)
+    n = lead(x, default = Inf) - x,
+    Mx = D / N,
+    ax = case_when(
+      x == 0 ~ 0.07 + 1.7 * Mx,
+      x == 1 ~ 1.5,
+      x == 95 ~ 1 / Mx,
+      TRUE ~ 2.5
+    ),
+    qx = case_when(
+      x == 95 ~ 1, # set to 1 for open interval
+      TRUE ~ n * Mx / (1 + (n - ax) * Mx)
+    ),
+    px = 1 - qx,
+    lx = lag(cumprod(px), default = 1),
+    dx = lx - lead(lx, default = 0),
+    Lx = case_when(
+      x == 95 ~ lx / Mx,
+      TRUE ~ n * lead(lx, default = 0) + (ax * dx)
+    ),
+    Tx = rev(cumsum(rev(Lx))),
+    ex = Tx / lx
+  )
 ```
 
-We can extend this to calculate life tables for every year using the `group_by` function 
-
+## Table 2: Period life table for females in Quebec in 2015
 ```{r}
-lt_all_years <- d |> 
-  group_by(year) |> 
-  mutate(
-       ax = case_when(
-       x==0 ~ 0.07 + 1.7*Mx,
-       x==1 ~ 1.5,
-       x==110 ~ 1/Mx,
-       TRUE ~ 2.5
-     ),
-      qx = n * Mx / (1 + (n - ax)* Mx),
-      px = 1 - qx,
-      lx = lag(cumprod(px), default = 1),
-      dx = lx - lead(lx, default = 0),
-      Lx = n * lead(lx, default = 0) + (ax* dx),
-      Tx = rev(cumsum(rev(Lx))),
-      ex = Tx / lx
-      ) 
-
-head(lt_all_years)
+lt_2015 |>
+  select(Age = age, x, n, Mx, ax, qx, px, lx, dx, Lx, Tx, ex) |>
+  # Padding Age with non-breaking spaces so it doesn't overflow into x
+  mutate(Age = paste0(Age, strrep("\u00a0", 2))) |>
+  kable(
+    booktabs = TRUE,
+    digits = c(NA, 0, 0, 6, 3, 6, 6, 6, 6, 3, 3, 3)
+  )
 ```
 
-
-Let's plot the $l_x$ curve over time; notice as mortality improves, the drop in $l_x$ after the first year of life becomes less noticeable, and the curve becomes more 'rectangular'[^11]
-
-[^11]: Indeed, this phenomenon is called 'the rectangularization of the survival curve' and is related to the study of 'compression' of mortality, meaning that deaths become more concentration at older ages. See for example [Wilmoth and Horiuchi](https://link.springer.com/article/10.2307/2648085). 
-
-```{r, warning = FALSE}
-lt_all_years |> 
-  ggplot(aes(x, lx, color = year, group = year)) + 
-  geom_line()+
-  ggtitle("Survivorship over time, Quebec")
-```
-
-We can also plot life expectancy at birth over time:
-
-```{r, warning = FALSE}
-lt_all_years |> 
-  filter(x==0) |>  
-  ggplot(aes(year, ex)) + 
-  geom_line() + 
-  ggtitle("Life expectancy at birth, Quebec")
-```
