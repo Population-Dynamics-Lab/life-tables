@@ -236,7 +236,7 @@ How did this come about? By rewriting $$_nL_x = n\cdot l_{x+n} + {_na_x}\cdot{_n
 
 ## Getting values for $_na_x$
 
-The conversion formula requires information only on period mortality rates and values of the average number of years lived for those who died, $_na_x$. How do we get these values? As mentioned above, the data required to calculate $_na_x$ exactly is usually not available, so we need to approximate it somehow. Preston, Heuveline and Guilot (2000) has a good overview of the options here (section 3.2, page 44), but the most common and easiest approach is, for **most** age groups, assume
+The conversion formula requires information only on period mortality rates and values of the average number of years lived for those who died, $_na_x$. How do we get these values? As mentioned above, the data required to calculate $_na_x$ exactly is usually not available, so we need to approximate it somehow. Preston, Heuveline and Guillot (2000) has a good overview of the options here (section 3.2, page 44), but the most common and easiest approach is, for **most** age groups, assume
 $$_na_x = n/2$$
 that is, on average those who die, die half-way through the interval. So for an abridged life table with five-year intervals, $_na_x = 2.5$. This assumption is fine for most age groups, except for the very young and very old ages. 
 
